@@ -145,6 +145,7 @@ void showMenu(void* nsStatusItem, void *nsMenu) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSStatusItem *statusItem = (NSStatusItem *)nsStatusItem;
 		[statusItem popUpStatusItemMenu:(NSMenu *)nsMenu];
+        statusItem.menu = (NSMenu *)nsMenu;
         // Post a mouse up event so the statusitem defocuses
         NSEvent *event = [NSEvent mouseEventWithType:NSEventTypeLeftMouseUp
                                             location:[NSEvent mouseLocation]
