@@ -170,7 +170,7 @@ func (a *linuxApp) registerWindow(window pointer, id uint) {
 }
 
 func (a *linuxApp) isDarkMode() bool {
-	return strings.Contains(a.theme, "dark")
+	return strings.Contains(strings.ToLower(a.theme), "dark")
 }
 
 func (a *linuxApp) getAccentColor() string {
@@ -191,6 +191,16 @@ func (a *linuxApp) monitorThemeChanges() {
 			return
 		}
 		defer conn.Close()
+
+		// retrieve initial theme
+		var theme string
+		obj := conn.Object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop")
+		err = obj.Call("org.freedesktop.portal.Settings.Read", 0, "org.gnome.desktop.interface", "color-scheme").Store(&theme)
+		if err == nil {
+			a.theme = theme
+		} else {
+			a.parent.info("[WARNING] Failed to get initial system theme:", err)
+		}
 
 		if err = conn.AddMatchSignal(
 			dbus.WithMatchObjectPath("/org/freedesktop/portal/desktop"),
