@@ -16,13 +16,13 @@ import "C"
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 
-	"path/filepath"
-
 	"github.com/godbus/dbus/v5"
+
 	"github.com/wailsapp/wails/v3/internal/operatingsystem"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -72,7 +72,7 @@ func (a *linuxApp) show() {
 
 func (a *linuxApp) on(eventID uint) {
 	// TODO: Test register/unregister events
-	//C.registerApplicationEvent(l.application, C.uint(eventID))
+	// C.registerApplicationEvent(l.application, C.uint(eventID))
 }
 
 func (a *linuxApp) name() string {
@@ -193,13 +193,13 @@ func (a *linuxApp) monitorThemeChanges() {
 		defer conn.Close()
 
 		// retrieve initial theme
-		var theme string
+		var val uint32
 		obj := conn.Object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop")
-		err = obj.Call("org.freedesktop.portal.Settings.Read", 0, "org.gnome.desktop.interface", "color-scheme").Store(&theme)
-		if err == nil {
-			a.theme = theme
-		} else {
-			a.parent.info("[WARNING] Failed to get initial system theme:", err)
+		if err = obj.Call("org.freedesktop.portal.Settings.Read", 0, "org.freedesktop.appearance", "color-scheme").Store(&val); err != nil {
+			panic(err)
+		}
+		if val == 1 {
+			a.theme = "prefer-dark"
 		}
 
 		if err = conn.AddMatchSignal(
@@ -215,11 +215,15 @@ func (a *linuxApp) monitorThemeChanges() {
 			if len(body) < 2 {
 				return "", false
 			}
-			if entry, ok := body[0].(string); !ok || entry != "org.gnome.desktop.interface" {
+			if entry, ok := body[0].(string); !ok || entry != "org.freedesktop.appearance" {
 				return "", false
 			}
 			if entry, ok := body[1].(string); ok && entry == "color-scheme" {
-				return body[2].(dbus.Variant).Value().(string), true
+				var theme string
+				if body[2].(dbus.Variant).Value().(uint32) == 1 {
+					theme = "prefer-dark"
+				}
+				return theme, true
 			}
 			return "", false
 		}
