@@ -177,6 +177,56 @@ func main() {
 		showResults("Full Featured", results, mainWindow)
 	})
 
+	testMenu.Add("11. Text Input Dialog (With Window)").OnClick(func(ctx *application.Context) {
+		result, err := application.TextInputDialog().
+			SetTitle("Text Input").
+			SetMessage("Please enter some text:").
+			PromptForText()
+		if err != nil {
+			showError("Text Input", err, mainWindow)
+			return
+		}
+		showResult("Text Input", result, err, mainWindow)
+	})
+
+	testMenu.Add("11b. Text Input Dialog (No Window)").OnClick(func(ctx *application.Context) {
+		result, err := application.TextInputDialog().
+			SetTitle("Text Input").
+			SetMessage("Please enter some text:").
+			PromptForText()
+		if err != nil {
+			showError("Text Input", err, mainWindow)
+			return
+		}
+		showTextResult("Text Input", result, err, mainWindow)
+	})
+
+	testMenu.Add("12. Password Input Dialog (With Window)").OnClick(func(ctx *application.Context) {
+		result, err := application.TextInputDialog().
+			SetTitle("Password Input").
+			SetMessage("Please enter your password:").
+			SetPassword(true).
+			PromptForText()
+		if err != nil {
+			showError("Password Input", err, mainWindow)
+			return
+		}
+		showTextResult("Password Input", result, err, mainWindow)
+	})
+
+	testMenu.Add("12b. Password Input Dialog (No Window)").OnClick(func(ctx *application.Context) {
+		result, err := application.TextInputDialog().
+			SetTitle("Password Input").
+			SetMessage("Please enter your password:").
+			SetPassword(true).
+			PromptForText()
+		if err != nil {
+			showError("Password Input", err, mainWindow)
+			return
+		}
+		showTextResult("Password Input", result, err, mainWindow)
+	})
+
 	// Show the window
 	mainWindow.Show()
 
@@ -229,6 +279,30 @@ func showResults(test string, results []string, window *application.WebviewWindo
 	dialog := application.InfoDialog().
 		SetTitle(test).
 		SetMessage(message.String())
+	if window != nil {
+		dialog.AttachToWindow(window)
+	}
+	dialog.Show()
+}
+
+func showTextResult(test string, result string, err error, window *application.WebviewWindow) {
+	if err != nil {
+		showError(test, err, window)
+		return
+	}
+	if result == "" {
+		dialog := application.InfoDialog().
+			SetTitle(test).
+			SetMessage("No text entered")
+		if window != nil {
+			dialog.AttachToWindow(window)
+		}
+		dialog.Show()
+		return
+	}
+	dialog := application.InfoDialog().
+		SetTitle(test).
+		SetMessage(fmt.Sprintf("Entered: %s", result))
 	if window != nil {
 		dialog.AttachToWindow(window)
 	}

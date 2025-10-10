@@ -15,6 +15,7 @@ extern void openFileDialogCallback(uint id, char* path);
 extern void openFileDialogCallbackEnd(uint id);
 extern void saveFileDialogCallback(uint id, char* path);
 extern void dialogCallback(int id, int buttonPressed);
+extern void textInputDialogCallback(uint id, char* text);
 
 static void showAboutBox(char* title, char *message, void *icon, int length) {
 
@@ -286,6 +287,84 @@ static void showSaveFileDialog(unsigned int dialogID,
 			}
 			saveFileDialogCallback(dialogID, (char *)path);
 		}];
+	}
+}
+
+// Show a text input dialog with optional secure entry and placeholder
+static void showTextInputDialog(
+	unsigned int dialogID,
+	char* title,
+	char* message,
+	char* defaultText,
+	char* placeholder,
+	bool password,
+	char* okButtonText,
+	char* cancelButtonText,
+	void *window,
+	void *icon,
+	int length
+) {
+	NSAlert *alert = [[NSAlert alloc] init];
+	[alert setAlertStyle:NSAlertStyleInformational];
+
+	if (icon != NULL) {
+		NSImage *image = [[NSImage alloc] initWithData:[NSData dataWithBytes:icon length:length]];
+		[alert setIcon:image];
+	} else if (password) {
+		NSImage *image = [NSImage imageNamed:NSImageNameLockLockedTemplate];
+		[alert setIcon:image];
+	} else {
+		NSImage *image = [NSImage imageNamed:NSImageNameInfo];
+		[alert setIcon:image];
+	}
+
+	if (title != NULL) {
+		[alert setMessageText:[NSString stringWithUTF8String:title]];
+		free(title);
+	}
+	if (message != NULL) {
+		[alert setInformativeText:[NSString stringWithUTF8String:message]];
+		free(message);
+	}
+
+	NSTextField *textField;
+	if (password) {
+		textField = [NSSecureTextField new];
+	} else {
+		textField = [NSTextField new];
+	}
+	[textField setFrame:NSMakeRect(0,0,226,24)];
+	if (defaultText != NULL) {
+		[textField setStringValue:[NSString stringWithUTF8String:defaultText]];
+		free(defaultText);
+	}
+	if (placeholder != NULL) {
+		[textField setPlaceholderString:[NSString stringWithUTF8String:placeholder]];
+		free(placeholder);
+	}
+	[alert setAccessoryView:textField];
+
+	NSString *okTitle = okButtonText != NULL ? [NSString stringWithUTF8String:okButtonText] : @"OK";
+	NSString *cancelTitle = cancelButtonText != NULL ? [NSString stringWithUTF8String:cancelButtonText] : @"Cancel";
+	if (okButtonText != NULL) free(okButtonText);
+	if (cancelButtonText != NULL) free(cancelButtonText);
+	[[alert addButtonWithTitle:okTitle] setKeyEquivalent:@"\r"];
+	[[alert addButtonWithTitle:cancelTitle] setKeyEquivalent:@"\033"];
+
+	void (^handler)(NSModalResponse) = ^(NSModalResponse response) {
+		if (response == NSAlertFirstButtonReturn) {
+			NSString *value = [textField stringValue];
+			textInputDialogCallback(dialogID, (char*)[value UTF8String]);
+		} else {
+			textInputDialogCallback(dialogID, NULL);
+		}
+	};
+
+	if (window != NULL) {
+		[alert beginSheetModalForWindow:(__bridge NSWindow *)window completionHandler:handler];
+	} else {
+		NSModalResponse response = [alert runModal];
+		handler(response);
 	}
 }
 
@@ -584,5 +663,72 @@ func saveFileDialogCallback(cid C.uint, cpath *C.char) {
 
 	} else {
 		panic("No channel found for save file dialog")
+	}
+}
+
+// macOS Text Input Dialog implementation
+
+type macosTextInputDialog struct {
+	dialog *TextInputDialogStruct
+}
+
+func newTextInputDialogImpl(d *TextInputDialogStruct) *macosTextInputDialog {
+	return &macosTextInputDialog{dialog: d}
+}
+
+func (m *macosTextInputDialog) show() (chan string, error) {
+	inputDialogResponses[m.dialog.id] = make(chan string)
+	var nsWindow unsafe.Pointer
+	if m.dialog.Window != nil {
+		nsWindow = m.dialog.Window.NativeWindow()
+	}
+	var iconData unsafe.Pointer
+	var iconLength C.int
+	if m.dialog.Icon != nil {
+		iconData = unsafe.Pointer(&m.dialog.Icon[0])
+		iconLength = C.int(len(m.dialog.Icon))
+	} else if globalApplication.options.Icon != nil {
+		iconData = unsafe.Pointer(&globalApplication.options.Icon[0])
+		iconLength = C.int(len(globalApplication.options.Icon))
+	}
+	C.showTextInputDialog(
+		C.uint(m.dialog.id),
+		toCString(m.dialog.Title),
+		toCString(m.dialog.Message),
+		toCString(m.dialog.DefaultText),
+		toCString(m.dialog.Placeholder),
+		C.bool(m.dialog.Password),
+		toCString(m.dialog.OKButtonText),
+		toCString(m.dialog.CancelButtonText),
+		nsWindow,
+		iconData,
+		iconLength,
+	)
+	return inputDialogResponses[m.dialog.id], nil
+}
+
+//export textInputDialogCallback
+func textInputDialogCallback(cid C.uint, ctext *C.char) {
+	var text string
+	if ctext != nil {
+		text = C.GoString(ctext)
+	} else {
+		text = ""
+	}
+	id := uint(cid)
+	channel, ok := inputDialogResponses[id]
+	if ok {
+		// might be called synchronously when the app does not have a window
+		// so use a goroutine to avoid deadlock
+		go func() {
+			channel <- text
+			close(channel)
+			InvokeSync(func() {
+				delete(inputDialogResponses, id)
+				freeDialogID(id)
+			})
+		}()
+	} else {
+		panic("No channel found for text input dialog")
 	}
 }

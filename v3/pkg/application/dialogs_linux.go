@@ -83,3 +83,17 @@ func newSaveFileDialogImpl(d *SaveFileDialogStruct) *linuxSaveFileDialog {
 func (m *linuxSaveFileDialog) show() (chan string, error) {
 	return runSaveFileDialog(m.dialog)
 }
+
+// Linux Text Input Dialog implementation
+
+type linuxTextInputDialog struct {
+	dialog *TextInputDialogStruct
+}
+
+func newTextInputDialogImpl(d *TextInputDialogStruct) *linuxTextInputDialog {
+	return &linuxTextInputDialog{dialog: d}
+}
+
+func (m *linuxTextInputDialog) show() (chan string, error) {
+	return runTextInputDialogChan(m.dialog)
+}
