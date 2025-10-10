@@ -9,21 +9,23 @@ import (
 )
 
 const (
-	DialogInfo     = 0
-	DialogWarning  = 1
-	DialogError    = 2
-	DialogQuestion = 3
-	DialogOpenFile = 4
-	DialogSaveFile = 5
+	DialogInfo      = 0
+	DialogWarning   = 1
+	DialogError     = 2
+	DialogQuestion  = 3
+	DialogOpenFile  = 4
+	DialogSaveFile  = 5
+	DialogTextInput = 6
 )
 
 var dialogMethodNames = map[int]string{
-	DialogInfo:     "Info",
-	DialogWarning:  "Warning",
-	DialogError:    "Error",
-	DialogQuestion: "Question",
-	DialogOpenFile: "OpenFile",
-	DialogSaveFile: "SaveFile",
+	DialogInfo:      "Info",
+	DialogWarning:   "Warning",
+	DialogError:     "Error",
+	DialogQuestion:  "Question",
+	DialogOpenFile:  "OpenFile",
+	DialogSaveFile:  "SaveFile",
+	DialogTextInput: "TextInput",
 }
 
 func (m *MessageProcessor) dialogErrorCallback(window Window, message string, dialogID *string, err error) {
@@ -157,6 +159,32 @@ func (m *MessageProcessor) processDialogMethod(method int, rw http.ResponseWrite
 			}
 			m.dialogCallback(window, dialogID, file, false)
 			m.Info("Runtime call:", "method", methodName, "result", file)
+		}()
+		m.ok(rw)
+		m.Info("Runtime call:", "method", methodName, "options", options)
+
+	case DialogTextInput:
+		var options TextInputDialogOptions
+		err := params.ToStruct(&options)
+		if err != nil {
+			m.httpError(rw, "Invalid dialog call:", fmt.Errorf("error parsing dialog options: %w", err))
+			return
+		}
+		var detached = args.Bool("Detached")
+		if detached == nil || !*detached {
+			options.Window = window
+		}
+		dialog := globalApplication.Dialog.TextInput()
+		dialog.TextInputDialogOptions = options
+		go func() {
+			defer handlePanic()
+			text, err := dialog.PromptForText()
+			if err != nil {
+				m.dialogErrorCallback(window, "Dialog.TextInput failed", dialogID, fmt.Errorf("error getting text: %w", err))
+				return
+			}
+			m.dialogCallback(window, dialogID, text, false)
+			m.Info("Runtime call:", "method", methodName, "result", text)
 		}()
 		m.ok(rw)
 		m.Info("Runtime call:", "method", methodName, "options", options)

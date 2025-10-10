@@ -335,7 +335,7 @@ func activateLinux(data pointer) {
 func processApplicationEvent(eventID C.uint, data pointer) {
 	event := newApplicationEvent(events.ApplicationEventType(eventID))
 
-	//if data != nil {
+	// if data != nil {
 	//	dataCStrJSON := C.serializationNSDictionary(data)
 	//	if dataCStrJSON != nil {
 	//		defer C.free(unsafe.Pointer(dataCStrJSON))
@@ -350,7 +350,7 @@ func processApplicationEvent(eventID C.uint, data pointer) {
 	//
 	//		event.Context().setData(result)
 	//	}
-	//}
+	// }
 
 	switch event.Id {
 	case uint(events.Linux.SystemThemeChanged):
@@ -395,7 +395,7 @@ func setProgramName(prgName string) {
 
 func appRun(app pointer) error {
 	application := (*C.GApplication)(app)
-	//TODO: Only set this if we configure it to do so
+	// TODO: Only set this if we configure it to do so
 	C.g_application_hold(application) // allows it to run without a window
 
 	signal := C.CString("activate")
@@ -916,7 +916,7 @@ func (w *linuxWebviewWindow) destroy() {
 
 func (w *linuxWebviewWindow) fullscreen() {
 	w.maximise()
-	//w.lastWidth, w.lastHeight = w.size()
+	// w.lastWidth, w.lastHeight = w.size()
 	x, y, width, height, scaleFactor := w.getCurrentMonitorGeometry()
 	if x == -1 && y == -1 && width == -1 && height == -1 {
 		return
@@ -1759,28 +1759,31 @@ func runChooserDialog(window pointer, allowMultiple, createFolders, showHidden b
 	}
 
 	selections := make(chan string)
-	// run this on the gtk thread
+	// run everything on the gtk thread to avoid thread-safety issues
 	InvokeAsync(func() {
 		response := C.gtk_dialog_run((*C.GtkDialog)(fc))
-		go func() {
-			defer handlePanic()
-			if response == C.GTK_RESPONSE_ACCEPT {
-				filenames := C.gtk_file_chooser_get_filenames((*C.GtkFileChooser)(fc))
-				iter := filenames
-				count := 0
-				for {
-					selections <- buildStringAndFree(C.gpointer(iter.data))
-					iter = iter.next
-					if iter == nil || count == 1024 {
-						break
-					}
-					count++
+		if response == C.GTK_RESPONSE_ACCEPT {
+			// Collect file names on GTK thread
+			filenames := C.gtk_file_chooser_get_filenames((*C.GtkFileChooser)(fc))
+			iter := filenames
+			count := 0
+			for {
+				// Send over channel on a separate goroutine so we don't block GTK thread
+				s := buildStringAndFree(C.gpointer(iter.data))
+				func(v string) { go func() { selections <- v }() }(s)
+				iter = iter.next
+				if iter == nil || count == 1024 {
+					break
 				}
+				count++
 			}
-			close(selections)
-		}()
+		}
+		// Close channel after sending all results
+		go func() { close(selections) }()
+		// Destroy dialog on GTK thread
+		C.gtk_widget_destroy((*C.GtkWidget)(unsafe.Pointer(fc)))
 	})
-	C.gtk_widget_destroy((*C.GtkWidget)(unsafe.Pointer(fc)))
+
 	return selections, nil
 }
 
@@ -1903,27 +1906,139 @@ func runSaveFileDialog(dialog *SaveFileDialogStruct) (chan string, error) {
 }
 
 func (w *linuxWebviewWindow) cut() {
-	//C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_CUT)
+	// C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_CUT)
 }
 
 func (w *linuxWebviewWindow) paste() {
-	//C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_PASTE)
+	// C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_PASTE)
 }
 
 func (w *linuxWebviewWindow) copy() {
-	//C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_COPY)
+	// C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_COPY)
 }
 
 func (w *linuxWebviewWindow) selectAll() {
-	//C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_SELECT_ALL)
+	// C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_SELECT_ALL)
 }
 
 func (w *linuxWebviewWindow) undo() {
-	//C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_UNDO)
+	// C.webkit_web_view_execute_editing_command(w.webview, C.WEBKIT_EDITING_COMMAND_UNDO)
 }
 
 func (w *linuxWebviewWindow) redo() {
 }
 
 func (w *linuxWebviewWindow) delete() {
+}
+
+func runTextInputDialogChan(d *TextInputDialogStruct) (chan string, error) {
+	results := make(chan string, 1)
+
+	InvokeAsync(func() {
+		var parent pointer = nilPointer
+		if d.Window != nil {
+			if nativeWindow := d.Window.NativeWindow(); nativeWindow != nil {
+				parent = pointer(nativeWindow)
+			}
+		}
+
+		msg := d.Message
+		if msg == "" {
+			msg = ""
+		}
+		cMsg := C.CString(msg)
+		defer C.free(unsafe.Pointer(cMsg))
+
+		dialog := C.new_message_dialog((*C.GtkWindow)(parent), cMsg, C.GTK_MESSAGE_QUESTION, C.bool(true))
+
+		if d.Title != "" {
+			cTitle := C.CString(d.Title)
+			defer C.free(unsafe.Pointer(cTitle))
+			C.gtk_window_set_title((*C.GtkWindow)(unsafe.Pointer(dialog)), cTitle)
+		}
+
+		if img, err := pngToImage(d.Icon); err == nil {
+			gbytes := C.g_bytes_new_static(
+				C.gconstpointer(unsafe.Pointer(&img.Pix[0])),
+				C.ulong(len(img.Pix)))
+			defer C.g_bytes_unref(gbytes)
+			pixBuf := C.gdk_pixbuf_new_from_bytes(
+				gbytes,
+				C.GDK_COLORSPACE_RGB,
+				1, // has_alpha
+				8,
+				C.int(img.Bounds().Dx()),
+				C.int(img.Bounds().Dy()),
+				C.int(img.Stride),
+			)
+			image := C.gtk_image_new_from_pixbuf(pixBuf)
+			C.gtk_widget_set_visible((*C.GtkWidget)(image), C.gboolean(1))
+			contentArea := C.gtk_dialog_get_content_area((*C.GtkDialog)(dialog))
+			C.gtk_container_add(
+				(*C.GtkContainer)(unsafe.Pointer(contentArea)),
+				(*C.GtkWidget)(image))
+		}
+
+		contentArea := C.gtk_dialog_get_content_area((*C.GtkDialog)(dialog))
+
+		entry := C.gtk_entry_new()
+		C.gtk_widget_set_margin_top((*C.GtkWidget)(entry), 8)
+		C.gtk_widget_set_margin_bottom((*C.GtkWidget)(entry), 8)
+		C.gtk_widget_set_margin_start((*C.GtkWidget)(entry), 12)
+		C.gtk_widget_set_margin_end((*C.GtkWidget)(entry), 12)
+
+		if d.DefaultText != "" {
+			cDefaultText := C.CString(d.DefaultText)
+			C.gtk_entry_set_text((*C.GtkEntry)(unsafe.Pointer(entry)), cDefaultText)
+			C.free(unsafe.Pointer(cDefaultText))
+		}
+		if d.Placeholder != "" {
+			cPlaceholder := C.CString(d.Placeholder)
+			C.gtk_entry_set_placeholder_text((*C.GtkEntry)(unsafe.Pointer(entry)), cPlaceholder)
+			C.free(unsafe.Pointer(cPlaceholder))
+		}
+		if d.Password {
+			C.gtk_entry_set_visibility((*C.GtkEntry)(unsafe.Pointer(entry)), C.FALSE)
+			C.gtk_entry_set_input_purpose((*C.GtkEntry)(unsafe.Pointer(entry)), C.GTK_INPUT_PURPOSE_PASSWORD)
+		}
+
+		C.gtk_entry_set_activates_default((*C.GtkEntry)(unsafe.Pointer(entry)), C.TRUE)
+		C.gtk_container_add((*C.GtkContainer)(unsafe.Pointer(contentArea)), (*C.GtkWidget)(entry))
+
+		okText := d.OKButtonText
+		if strings.TrimSpace(okText) == "" {
+			okText = "_OK"
+		}
+		cancelText := d.CancelButtonText
+		if strings.TrimSpace(cancelText) == "" {
+			cancelText = "_Cancel"
+		}
+		cOK := C.CString(okText)
+		defer C.free(unsafe.Pointer(cOK))
+		cCancel := C.CString(cancelText)
+		defer C.free(unsafe.Pointer(cCancel))
+		C.gtk_dialog_add_button((*C.GtkDialog)(dialog), cCancel, C.GTK_RESPONSE_CANCEL)
+		C.gtk_dialog_add_button((*C.GtkDialog)(dialog), cOK, C.GTK_RESPONSE_OK)
+		C.gtk_dialog_set_default_response((*C.GtkDialog)(dialog), C.GTK_RESPONSE_OK)
+
+		C.gtk_widget_show_all((*C.GtkWidget)(unsafe.Pointer(dialog)))
+		C.gtk_widget_grab_focus((*C.GtkWidget)(entry))
+
+		response := C.gtk_dialog_run((*C.GtkDialog)(unsafe.Pointer(dialog)))
+		res := ""
+		if response == C.GTK_RESPONSE_OK {
+			text := C.gtk_entry_get_text((*C.GtkEntry)(unsafe.Pointer(entry)))
+			res = C.GoString(text)
+		}
+
+		C.gtk_widget_destroy((*C.GtkWidget)(unsafe.Pointer(dialog)))
+
+		go func(v string) {
+			defer handlePanic()
+			results <- v
+			close(results)
+		}(res)
+	})
+
+	return results, nil
 }

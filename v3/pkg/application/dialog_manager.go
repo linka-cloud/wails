@@ -55,3 +55,8 @@ func (dm *DialogManager) Warning() *MessageDialog {
 func (dm *DialogManager) Error() *MessageDialog {
 	return ErrorDialog()
 }
+
+// TextInput creates a text input dialog
+func (dm *DialogManager) TextInput() *TextInputDialogStruct {
+	return TextInputDialog()
+}

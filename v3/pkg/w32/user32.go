@@ -10,6 +10,7 @@ package w32
 import (
 	"fmt"
 	"runtime"
+	"strconv"
 	"syscall"
 	"unsafe"
 
@@ -52,9 +53,10 @@ var (
 	procScreenToClient                = moduser32.NewProc("ScreenToClient")
 	procCallWindowProc                = moduser32.NewProc("CallWindowProcW")
 	procSetWindowLong                 = moduser32.NewProc("SetWindowLongW")
-	procSetWindowLongPtr              = moduser32.NewProc("SetWindowLongW")
+	// Use the correct PTR variants on 64-bit
+	procSetWindowLongPtrW             = moduser32.NewProc("SetWindowLongPtrW")
 	procGetWindowLong                 = moduser32.NewProc("GetWindowLongW")
-	procGetWindowLongPtr              = moduser32.NewProc("GetWindowLongW")
+	procGetWindowLongPtrW             = moduser32.NewProc("GetWindowLongPtrW")
 	procEnableWindow                  = moduser32.NewProc("EnableWindow")
 	procIsWindowEnabled               = moduser32.NewProc("IsWindowEnabled")
 	procIsWindowVisible               = moduser32.NewProc("IsWindowVisible")
@@ -606,11 +608,16 @@ func SetWindowLong(hwnd HWND, index int, value uint32) uint32 {
 }
 
 func SetWindowLongPtr(hwnd HWND, index int, value uintptr) uintptr {
-	ret, _, _ := procSetWindowLongPtr.Call(
+	// On 64-bit, call SetWindowLongPtrW; on 32-bit, SetWindowLongW
+	proc := procSetWindowLongPtrW
+	if strconv.IntSize == 32 {
+		proc = procSetWindowLong
+	}
+	ret, _, _ := proc.Call(
 		uintptr(hwnd),
 		uintptr(index),
-		value)
-
+		value,
+	)
 	return ret
 }
 
@@ -623,9 +630,15 @@ func GetWindowLong(hwnd HWND, index int) int32 {
 }
 
 func GetWindowLongPtr(hwnd HWND, index int) uintptr {
-	ret, _, _ := procGetWindowLongPtr.Call(
+	// On 64-bit, call GetWindowLongPtrW; on 32-bit, GetWindowLongW
+	proc := procGetWindowLongPtrW
+	if strconv.IntSize == 32 {
+		proc = procGetWindowLong
+	}
+	ret, _, _ := proc.Call(
 		uintptr(hwnd),
-		uintptr(index))
+		uintptr(index),
+	)
 
 	return ret
 }

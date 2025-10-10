@@ -118,6 +118,60 @@ func main() {
 		dialog.Show()
 	})
 
+	textInputMenu := menu.AddSubmenu("Text Input")
+	textInputMenu.Add("Text Input").OnClick(func(ctx *application.Context) {
+		result, _ := application.TextInputDialog().
+			SetTitle("Text Input").
+			SetMessage("Please enter some text:").
+			SetPlaceholder("Some text ...").
+			PromptForText()
+		if result != "" {
+			application.InfoDialog().SetMessage(result).Show()
+		} else {
+			application.InfoDialog().SetMessage("No text entered").Show()
+		}
+	})
+	textInputMenu.Add("Text Input (Custom Icon)").OnClick(func(ctx *application.Context) {
+		result, _ := application.TextInputDialog().
+			SetTitle("Text Input").
+			SetMessage("Please enter some text:").
+			SetPlaceholder("Some text ...").
+			SetIcon(icons.ApplicationDarkMode256).
+			PromptForText()
+		if result != "" {
+			application.InfoDialog().SetMessage(result).Show()
+		} else {
+			application.InfoDialog().SetMessage("No text entered").Show()
+		}
+	})
+	textInputMenu.Add("Password Input").OnClick(func(ctx *application.Context) {
+		result, _ := application.TextInputDialog().
+			SetTitle("Password Input").
+			SetMessage("Please enter some password:").
+			SetPlaceholder("Some password ...").
+			SetPassword(true).
+			PromptForText()
+		if result != "" {
+			application.InfoDialog().SetMessage(result).Show()
+		} else {
+			application.InfoDialog().SetMessage("No password entered").Show()
+		}
+	})
+	textInputMenu.Add("Password Input (Custom Icon)").OnClick(func(ctx *application.Context) {
+		result, _ := application.TextInputDialog().
+			SetTitle("Password Input").
+			SetMessage("Please enter some password:").
+			SetPlaceholder("Some password ...").
+			SetIcon(icons.ApplicationDarkMode256).
+			SetPassword(true).
+			PromptForText()
+		if result != "" {
+			application.InfoDialog().SetMessage(result).Show()
+		} else {
+			application.InfoDialog().SetMessage("No password entered").Show()
+		}
+	})
+
 	warningMenu := menu.AddSubmenu("Warning")
 	warningMenu.Add("Warning").OnClick(func(ctx *application.Context) {
 		application.WarningDialog().
