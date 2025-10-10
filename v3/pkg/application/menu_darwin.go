@@ -97,6 +97,9 @@ func (m *macosMenu) processMenu(parent unsafe.Pointer, menu *Menu) {
 			m.processMenu(nsSubmenu, submenu)
 			menuItem := newMenuItemImpl(item)
 			item.impl = menuItem
+			if item.hidden {
+				menuItem.setHidden(true)
+			}
 			C.addMenuItem(parent, menuItem.nsMenuItem)
 			C.setMenuItemSubmenu(menuItem.nsMenuItem, nsSubmenu)
 			if item.role == ServicesMenu {
