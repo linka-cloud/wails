@@ -37,6 +37,9 @@ func (m *macosMenu) processMenu(parent unsafe.Pointer, menu *Menu) {
 			m.processMenu(ptrFromID(nsSubmenu), submenu)
 			menuItem := newMenuItemImpl(item)
 			item.impl = menuItem
+			if item.hidden {
+				menuItem.setHidden(true)
+			}
 			nsItem := idFromPtr(menuItem.nsMenuItem)
 			parentMenu.send("addItem:", nsItem)
 			nsItem.send("setSubmenu:", nsSubmenu)
