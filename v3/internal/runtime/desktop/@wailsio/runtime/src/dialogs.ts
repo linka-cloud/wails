@@ -26,6 +26,20 @@ const DialogError = 2;
 const DialogQuestion = 3;
 const DialogOpenFile = 4;
 const DialogSaveFile = 5;
+const DialogTextInput = 6;
+
+/** Options for a native text or password prompt. */
+export interface TextInputDialogOptions {
+    Title?: string;
+    Message?: string;
+    DefaultText?: string;
+    Placeholder?: string;
+    Password?: boolean;
+    OKButtonText?: string;
+    CancelButtonText?: string;
+    /** True to show the dialog without attaching it to the calling window. */
+    Detached?: boolean;
+}
 
 export interface OpenFileDialogOptions {
     /** Indicates if directories can be chosen. */
@@ -131,7 +145,7 @@ export interface FileFilter {
  * @param options - Options for the dialog.
  * @returns A promise that resolves with result of dialog.
  */
-function dialog(type: number, options: MessageDialogOptions | OpenFileDialogOptions | SaveFileDialogOptions = {}): Promise<any> {
+function dialog(type: number, options: MessageDialogOptions | OpenFileDialogOptions | SaveFileDialogOptions | TextInputDialogOptions = {}): Promise<any> {
     return call(type, options);
 }
 
@@ -185,3 +199,11 @@ export function OpenFile(options: OpenFileDialogOptions): Promise<string | strin
  * @returns Selected file, or a blank string if no file has been selected.
  */
 export function SaveFile(options: SaveFileDialogOptions): Promise<string> { return dialog(DialogSaveFile, options); }
+
+/**
+ * Presents a native text input dialog, optionally masking input as a password.
+ * Resolves with the entered text, or an empty string when cancelled.
+ */
+export function TextInput(options: TextInputDialogOptions = {}): Promise<string> {
+    return dialog(DialogTextInput, options);
+}

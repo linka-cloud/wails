@@ -187,6 +187,11 @@ func (m *MessageProcessor) logRuntimeCall(req *RuntimeRequest) {
 		methodName = contextmenuMethodNames[req.Method]
 	case dialogRequest:
 		methodName = dialogMethodNames[req.Method]
+		if req.Method == DialogTextInput {
+			// DefaultText may contain a password. Keep prompt contents out of logs.
+			m.Debug("Runtime call:", "method", objectName+"."+methodName)
+			return
+		}
 	case windowRequest:
 		methodName = windowMethodNames[req.Method]
 	case screensRequest:

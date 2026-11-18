@@ -124,6 +124,38 @@ func main() {
 		dialog.Show()
 	})
 
+	textMenu := menu.AddSubmenu("Text Input")
+	for _, password := range []bool{false, true} {
+		for _, attached := range []bool{false, true} {
+			label := "Text"
+			if password {
+				label = "Password"
+			}
+			if attached {
+				label += " (Attached)"
+			} else {
+				label += " (Detached)"
+			}
+			textMenu.Add(label).OnClick(func(ctx *application.Context) {
+				dialog := app.Dialog.TextInput().SetTitle(label).
+					SetMessage("Enter a value:").SetPlaceholder("Value").SetPassword(password)
+				if attached {
+					dialog.AttachToWindow(app.Window.Current())
+				}
+				text, err := dialog.PromptForText()
+				if err != nil {
+					app.Dialog.Error().SetMessage(err.Error()).Show()
+					return
+				}
+				message := "No value entered"
+				if text != "" {
+					message = "Value received"
+				}
+				app.Dialog.Info().SetMessage(message).Show()
+			})
+		}
+	}
+
 	warningMenu := menu.AddSubmenu("Warning")
 	warningMenu.Add("Warning").OnClick(func(ctx *application.Context) {
 		app.Dialog.Warning().

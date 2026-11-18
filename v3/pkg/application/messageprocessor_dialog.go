@@ -7,21 +7,23 @@ import (
 )
 
 const (
-	DialogInfo     = 0
-	DialogWarning  = 1
-	DialogError    = 2
-	DialogQuestion = 3
-	DialogOpenFile = 4
-	DialogSaveFile = 5
+	DialogInfo      = 0
+	DialogWarning   = 1
+	DialogError     = 2
+	DialogQuestion  = 3
+	DialogOpenFile  = 4
+	DialogSaveFile  = 5
+	DialogTextInput = 6
 )
 
 var dialogMethodNames = map[int]string{
-	DialogInfo:     "Info",
-	DialogWarning:  "Warning",
-	DialogError:    "Error",
-	DialogQuestion: "Question",
-	DialogOpenFile: "OpenFile",
-	DialogSaveFile: "SaveFile",
+	DialogInfo:      "Info",
+	DialogWarning:   "Warning",
+	DialogError:     "Error",
+	DialogQuestion:  "Question",
+	DialogOpenFile:  "OpenFile",
+	DialogSaveFile:  "SaveFile",
+	DialogTextInput: "TextInput",
 }
 
 func (m *MessageProcessor) processDialogMethod(req *RuntimeRequest, window Window) (any, error) {
@@ -119,6 +121,22 @@ func (m *MessageProcessor) processDialogMethod(req *RuntimeRequest, window Windo
 			return nil, errs.WrapInvalidDialogCallErrorf(err, "Dialog.SaveFile failed: error getting selection")
 		}
 		return file, nil
+
+	case DialogTextInput:
+		var options TextInputDialogOptions
+		if err := req.Args.ToStruct(&options); err != nil {
+			return nil, errs.WrapInvalidDialogCallErrorf(err, "error parsing text input dialog options")
+		}
+		if detached := args.Bool("Detached"); detached == nil || !*detached {
+			options.Window = window
+		}
+		dialog := globalApplication.Dialog.TextInput()
+		dialog.TextInputDialogOptions = options
+		text, err := dialog.PromptForText()
+		if err != nil {
+			return nil, errs.WrapInvalidDialogCallErrorf(err, "Dialog.TextInput failed")
+		}
+		return text, nil
 
 	default:
 		return nil, errs.NewInvalidDialogCallErrorf("unknown method: %d", req.Method)

@@ -55,3 +55,8 @@ func (dm *DialogManager) Warning() *MessageDialog {
 func (dm *DialogManager) Error() *MessageDialog {
 	return newMessageDialog(ErrorDialogType)
 }
+
+// TextInput creates a native text or password input dialog.
+func (dm *DialogManager) TextInput() *TextInputDialogStruct {
+	return newTextInputDialog()
+}

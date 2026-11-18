@@ -54,6 +54,16 @@ func TestDialogsBeforeRunReturnInsteadOfWaiting(t *testing.T) {
 		call func() string
 	}{
 		{
+			name: "TextInputDialog.PromptForText",
+			call: func() string {
+				text, err := TextInputDialog().SetPassword(true).PromptForText()
+				if text != "" || err != nil {
+					return "expected empty text and no error before Run"
+				}
+				return ""
+			},
+		},
+		{
 			name: "MessageDialog.Show",
 			call: func() string {
 				newMessageDialog(InfoDialogType).SetMessage("before Run").Show()
