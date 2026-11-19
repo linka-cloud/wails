@@ -7,21 +7,29 @@ package dock
 #cgo LDFLAGS: -framework Cocoa
 #import <Cocoa/Cocoa.h>
 
+static void onMainThread(dispatch_block_t work) {
+    if ([NSThread isMainThread]) {
+        work();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), work);
+    }
+}
+
 void hideDockIcon() {
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    onMainThread(^{
         [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
     });
 }
 
 void showDockIcon() {
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    onMainThread(^{
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     });
 }
 
 bool setBadge(const char *label) {
     __block bool success = false;
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    onMainThread(^{
         // Ensure the app is in Regular activation policy (dock icon visible)
         NSApplicationActivationPolicy currentPolicy = [NSApp activationPolicy];
         if (currentPolicy != NSApplicationActivationPolicyRegular) {
