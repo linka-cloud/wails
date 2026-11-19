@@ -18,6 +18,25 @@ type nativeMenuItemSnapshot struct {
 	submenu w32.HMENU
 }
 
+func TestWin32TrayMenuSubtitleUpdatesLabel(t *testing.T) {
+	menu := NewMenu()
+	defer menu.Destroy()
+	item := menu.Add("Connected").SetSubtitle("work.example.com")
+	popup := NewPopupMenu(0, menu)
+	defer popup.Destroy()
+	checkLabel := func(want string) {
+		t.Helper()
+		if got := snapshotNativeMenuItem(t, popup.menu, 0).label; got != want {
+			t.Fatalf("label=%q, want %q", got, want)
+		}
+	}
+	checkLabel("Connected — work.example.com")
+	item.SetLabel("Connecting").SetSubtitle("home.example.com")
+	checkLabel("Connecting — home.example.com")
+	item.SetSubtitle("")
+	checkLabel("Connecting")
+}
+
 func TestWin32MenuHiddenAcceleratorBindings(t *testing.T) {
 	for _, scope := range []string{"application", "window"} {
 		t.Run(scope, func(t *testing.T) {

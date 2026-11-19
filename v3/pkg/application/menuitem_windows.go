@@ -181,7 +181,7 @@ func newMenuItemImpl(item *MenuItem, parentMenu w32.HMENU, ID int) *windowsMenuI
 		disabled: item.disabled,
 		checked:  item.checked,
 		itemType: item.itemType,
-		label:    item.label,
+		label:    item.displayLabel(),
 		hidden:   item.hidden,
 	}
 

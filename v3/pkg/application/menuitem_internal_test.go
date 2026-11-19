@@ -4,6 +4,22 @@ import (
 	"testing"
 )
 
+func TestMenuItemSubtitleSurvivesCloneAndRename(t *testing.T) {
+	item := NewMenuItem("Connected").SetSubtitle("work.example.com")
+	defer item.Destroy()
+	copy := item.Clone()
+	copy.SetLabel("Connecting")
+	if copy.Label() != "Connecting" || copy.Subtitle() != "work.example.com" ||
+		copy.displayLabel() != "Connecting — work.example.com" {
+		t.Fatalf("unexpected cloned menu item: label=%q subtitle=%q display=%q",
+			copy.Label(), copy.Subtitle(), copy.displayLabel())
+	}
+	copy.SetSubtitle("")
+	if copy.displayLabel() != "Connecting" || item.Subtitle() != "work.example.com" {
+		t.Fatal("clearing the cloned subtitle must restore the plain label without changing the original")
+	}
+}
+
 func TestMenuItemType_Constants(t *testing.T) {
 	// Verify menu item type constants are distinct
 	if text != 0 {

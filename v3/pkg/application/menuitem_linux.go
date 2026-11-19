@@ -109,9 +109,9 @@ func newMenuItemImpl(item *MenuItem) *linuxMenuItem {
 	}
 	switch item.itemType {
 	case text:
-		result.native = menuItemNewWithId(item.label, item.bitmap, item.id)
+		result.native = menuItemNewWithId(item.displayLabel(), item.bitmap, item.id)
 	case submenu:
-		result.native = menuItemNewWithId(item.label, item.bitmap, item.id)
+		result.native = menuItemNewWithId(item.displayLabel(), item.bitmap, item.id)
 	default:
 		panic(fmt.Sprintf("Unknown menu type for newMenuItemImpl: %v", item.itemType))
 	}
@@ -126,7 +126,7 @@ func newMenuItemImpl(item *MenuItem) *linuxMenuItem {
 func newCheckMenuItemImpl(item *MenuItem) *linuxMenuItem {
 	result := &linuxMenuItem{
 		menuItem: item,
-		native:   menuCheckItemNewWithId(item.label, item.bitmap, item.id, item.checked),
+		native:   menuCheckItemNewWithId(item.displayLabel(), item.bitmap, item.id, item.checked),
 	}
 	menuItemSetIdAttribute(result.native, item.id)
 	if item.accelerator != nil {
@@ -139,7 +139,7 @@ func newCheckMenuItemImpl(item *MenuItem) *linuxMenuItem {
 func newRadioMenuItemImpl(item *MenuItem, groupId uint, checkedId uint) *linuxMenuItem {
 	result := &linuxMenuItem{
 		menuItem: item,
-		native:   menuRadioItemNewWithGroup(item.label, item.id, groupId, checkedId),
+		native:   menuRadioItemNewWithGroup(item.displayLabel(), item.id, groupId, checkedId),
 	}
 	menuItemSetIdAttribute(result.native, item.id)
 	if item.accelerator != nil {

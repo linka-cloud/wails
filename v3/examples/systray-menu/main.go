@@ -55,10 +55,10 @@ func main() {
 	}
 
 	myMenu := app.NewMenu()
+	status := myMenu.Add("Connected").SetBitmap(logo).SetEnabled(false)
 	if hostname, err := os.Hostname(); err == nil {
-		myMenu.AddSectionHeader(hostname) // Native on macOS 14+; no-op elsewhere.
+		status.SetSubtitle(hostname)
 	}
-	myMenu.Add("Wails").SetBitmap(logo).SetEnabled(false)
 	myMenu.Add("Hidden").SetHidden(true)
 
 	myMenu.Add("Hello World!").OnClick(func(ctx *application.Context) {

@@ -142,7 +142,7 @@ func (w *windowsMenu) processMenu(parentMenu w32.HMENU, inputMenu *Menu) error {
 			menuItemImpl.submenu = newSubmenu
 		}
 
-		thisText := item.Label()
+		thisText := item.displayLabel()
 		if item.accelerator != nil && item.callback != nil {
 			if w.parentWindow != nil {
 				w.parentWindow.parent.addMenuBinding(item.accelerator, item)

@@ -195,7 +195,7 @@ func (p *Win32Menu) buildMenu(parentMenu w32.HMENU, inputMenu *Menu) error {
 			menuItemImpl.submenu = newSubmenu
 		}
 
-		var menuText = item.Label()
+		var menuText = item.displayLabel()
 		if item.accelerator != nil {
 			menuText = menuText + "\t" + item.accelerator.String()
 			if !item.Hidden() && item.callback != nil {

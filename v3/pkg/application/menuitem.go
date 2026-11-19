@@ -52,6 +52,7 @@ type menuItemImpl interface {
 type MenuItem struct {
 	id              uint
 	label           string
+	subtitle        string
 	tooltip         string
 	disabled        bool
 	checked         bool
@@ -344,10 +345,43 @@ func (m *MenuItem) SetRole(role Role) *MenuItem {
 
 func (m *MenuItem) SetLabel(s string) *MenuItem {
 	m.label = s
-	if m.impl != nil {
-		m.impl.setLabel(s)
-	}
+	m.updateLabel()
 	return m
+}
+
+// SetSubtitle sets secondary text on this menu item. macOS 14.4 and later
+// show it below the label. Other desktop platforms display it alongside the
+// label. Pass an empty string to remove it.
+func (m *MenuItem) SetSubtitle(subtitle string) *MenuItem {
+	if m.itemType == separator || m.itemType == sectionHeader {
+		return m
+	}
+	m.subtitle = subtitle
+	m.updateLabel()
+	return m
+}
+
+// Subtitle returns the secondary text of this menu item.
+func (m *MenuItem) Subtitle() string {
+	return m.subtitle
+}
+
+func (m *MenuItem) displayLabel() string {
+	if m.subtitle == "" {
+		return m.label
+	}
+	if m.label == "" {
+		return m.subtitle
+	}
+	return m.label + " — " + m.subtitle
+}
+
+func (m *MenuItem) updateLabel() {
+	if native, ok := m.impl.(interface{ setTitleAndSubtitle(*MenuItem) }); ok {
+		native.setTitleAndSubtitle(m)
+	} else if m.impl != nil {
+		m.impl.setLabel(m.displayLabel())
+	}
 }
 
 func (m *MenuItem) SetEnabled(enabled bool) *MenuItem {
@@ -454,6 +488,7 @@ func (m *MenuItem) Clone() *MenuItem {
 	result := &MenuItem{
 		id:       m.id,
 		label:    m.label,
+		subtitle: m.subtitle,
 		tooltip:  m.tooltip,
 		disabled: m.disabled,
 		checked:  m.checked,

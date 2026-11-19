@@ -115,6 +115,22 @@ func (m macosMenuItem) setLabel(s string) {
 	})
 }
 
+func (m macosMenuItem) setTitleAndSubtitle(menuItem *MenuItem) {
+	item := idFromPtr(m.nsMenuItem)
+	runOnMainMenu(func() {
+		if !respondsTo(item, "setSubtitle:") {
+			item.send("setTitle:", nsString(menuItem.displayLabel()))
+			return
+		}
+		item.send("setTitle:", nsString(menuItem.label))
+		var subtitle id
+		if menuItem.subtitle != "" {
+			subtitle = nsString(menuItem.subtitle)
+		}
+		item.send("setSubtitle:", subtitle)
+	})
+}
+
 func (m macosMenuItem) setDisabled(disabled bool) {
 	item := idFromPtr(m.nsMenuItem)
 	runOnMainMenu(func() {
@@ -230,6 +246,9 @@ func newMenuItemImpl(item *MenuItem) *macosMenuItem {
 	nsItem.send("setTag:", int(item.id))
 
 	result.nsMenuItem = ptrFromID(nsItem)
+	if item.subtitle != "" {
+		result.setTitleAndSubtitle(item)
+	}
 
 	switch item.itemType {
 	case checkbox, radio:

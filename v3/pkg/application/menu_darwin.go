@@ -100,13 +100,9 @@ func (m *macosMenu) processMenu(parent unsafe.Pointer, menu *Menu) {
 			submenu := item.submenu
 			nsSubmenu := C.createNSMenu(C.CString(item.label))
 			m.processMenu(nsSubmenu, submenu)
-			menuItem := newMenuItemImpl(item)
-			item.impl = menuItem
-			if item.hidden {
-				menuItem.setHidden(true)
-			}
-			C.addMenuItem(parent, menuItem.nsMenuItem)
+			menuItem := prepareMacOSMenuItem(item)
 			C.setMenuItemSubmenu(menuItem.nsMenuItem, nsSubmenu)
+			C.addMenuItem(parent, menuItem.nsMenuItem)
 			if item.role == ServicesMenu {
 				C.addServicesMenu(nsSubmenu)
 			}
@@ -117,20 +113,11 @@ func (m *macosMenu) processMenu(parent unsafe.Pointer, menu *Menu) {
 			// the subtree unwinds when the item goes away.
 			C.releaseNSMenu(nsSubmenu)
 		case text, checkbox, radio, sectionHeader:
-			menuItem := newMenuItemImpl(item)
-			item.impl = menuItem
-			if item.hidden {
-				menuItem.setHidden(true)
-			}
+			menuItem := prepareMacOSMenuItem(item)
 			C.addMenuItem(parent, menuItem.nsMenuItem)
 		case separator:
 			C.addMenuSeparator(parent)
 		}
-		if item.bitmap != nil {
-			macMenuItem := item.impl.(*macosMenuItem)
-			C.setMenuItemBitmap(macMenuItem.nsMenuItem, (*C.uchar)(&item.bitmap[0]), C.int(len(item.bitmap)))
-		}
-
 	}
 }
 

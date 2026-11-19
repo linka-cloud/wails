@@ -120,9 +120,22 @@ Linux, mobile and server builds, the call is a no-op and inserts no row.
 Use it in tray, context or application menus to label related commands. Use
 `AddSeparator()` to separate radio groups across all platforms, since omitted
 headers do not break radio groups. See [Menu API](/reference/menu#addsectionheader)
-for the method signature and the `systray-menu` example for a hostname heading.
+for the method signature.
 
 ## Menu Item Properties
+
+### Subtitle
+
+Use secondary text to add detail to the same menu item:
+
+```go
+status := menu.Add("Connected").SetSubtitle("work.example.com")
+status.SetEnabled(false)
+```
+
+macOS 14.4 and later display the subtitle beneath the label. Older macOS
+versions, Linux, and Windows display the two strings together in one row.
+`Subtitle()` returns the secondary text, and `SetSubtitle("")` removes it.
 
 ### Label
 

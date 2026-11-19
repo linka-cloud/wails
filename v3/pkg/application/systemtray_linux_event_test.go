@@ -8,6 +8,26 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
+func TestLinuxTrayMenuSubtitleUpdatesLabel(t *testing.T) {
+	tray := &linuxSystemTray{}
+	menu := NewMenu()
+	defer menu.Destroy()
+	item := menu.Add("Connected").SetSubtitle("work.example.com")
+	tray.setMenu(menu)
+	checkLabel := func(want string) {
+		t.Helper()
+		label, err := tray.GetProperty(int32(item.id), "label")
+		if err != nil || label.Value() != want {
+			t.Fatalf("label=%v, err=%v, want %q", label, err, want)
+		}
+	}
+	checkLabel("Connected — work.example.com")
+	item.SetSubtitle("home.example.com")
+	checkLabel("Connected — home.example.com")
+	item.SetSubtitle("")
+	checkLabel("Connected")
+}
+
 // trayHandlerCounts records which of the SystemTray callbacks a dbusmenu
 // event reached, so each assertion can pin the whole set rather than the one
 // callback it is about — an event running a callback it should not is the

@@ -120,7 +120,6 @@ menu.Add("Build VM").OnClick(openBuildVM)
 
 Headings use AppKit's standard section-header appearance. Call `menu.Update()`
 after rebuilding an already displayed menu, as with other structural changes.
-See the `systray-menu` example for a heading obtained from `os.Hostname()`.
 
 Omitted headings do not split radio groups. Use `AddSeparator()` when radio
 groups must remain separate on every platform.

@@ -60,17 +60,26 @@ void* newMenuItem(unsigned int menuItemID, char *label, bool disabled, char* too
 // Apply on the main thread synchronously so a menu reopen reflects the new
 // title. See setMenuItemChecked() below / wailsapp/wails#5002 for the stale-
 // state race that motivates the isMainThread/dispatch_sync pattern.
-void setMenuItemLabel(void* nsMenuItem, char *label) {
-    MenuItem *menuItem = (MenuItem *)nsMenuItem;
-    if ([NSThread isMainThread]) {
-        menuItem.title = [NSString stringWithUTF8String:label];
-        free(label);
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), ^{
+static void setMenuItemTitleAndSubtitle(void* nsMenuItem, char *label, char *subtitle, char *fallback) {
+    NSMenuItem *menuItem = (NSMenuItem *)nsMenuItem;
+    void (^apply)(void) = ^{
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 140400
+        if (@available(macOS 14.4, *)) {
             menuItem.title = [NSString stringWithUTF8String:label];
-            free(label);
-        });
+            menuItem.subtitle = subtitle[0] ? [NSString stringWithUTF8String:subtitle] : nil;
+            return;
+        }
+#endif
+        menuItem.title = [NSString stringWithUTF8String:fallback];
+    };
+    if ([NSThread isMainThread]) {
+        apply();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), apply);
     }
+    free(label);
+    free(subtitle);
+    free(fallback);
 }
 
 // set menu item disabled
@@ -375,7 +384,11 @@ func (m macosMenuItem) setTooltip(tooltip string) {
 }
 
 func (m macosMenuItem) setLabel(s string) {
-	C.setMenuItemLabel(m.nsMenuItem, C.CString(s))
+	C.setMenuItemTitleAndSubtitle(m.nsMenuItem, C.CString(s), C.CString(""), C.CString(s))
+}
+
+func (m macosMenuItem) setTitleAndSubtitle(item *MenuItem) {
+	C.setMenuItemTitleAndSubtitle(m.nsMenuItem, C.CString(item.label), C.CString(item.subtitle), C.CString(item.displayLabel()))
 }
 
 func (m macosMenuItem) setDisabled(disabled bool) {
@@ -427,6 +440,9 @@ func newMenuItemImpl(item *MenuItem) *macosMenuItem {
 		C.CString(item.tooltip),
 		selector,
 	))
+	if item.subtitle != "" {
+		result.setTitleAndSubtitle(item)
+	}
 
 	switch item.itemType {
 	case checkbox, radio:

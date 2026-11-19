@@ -112,19 +112,19 @@ func newMenuItemImpl(item *MenuItem) *linuxMenuItem {
 	}
 	switch item.itemType {
 	case text:
-		result.native = menuItemNew(item.label, item.bitmap)
+		result.native = menuItemNew(item.displayLabel(), item.bitmap)
 		if item.accelerator != nil {
 			result.setAccelerator(item.accelerator)
 		}
 
 	case checkbox:
-		result.native = menuCheckItemNew(item.label, item.bitmap)
+		result.native = menuCheckItemNew(item.displayLabel(), item.bitmap)
 		result.setChecked(item.checked)
 		if item.accelerator != nil {
 			result.setAccelerator(item.accelerator)
 		}
 	case submenu:
-		result.native = menuItemNew(item.label, item.bitmap)
+		result.native = menuItemNew(item.displayLabel(), item.bitmap)
 
 	default:
 		panic(fmt.Sprintf("Unknown menu type: %v", item.itemType))
@@ -138,7 +138,7 @@ func newMenuItemImpl(item *MenuItem) *linuxMenuItem {
 func newRadioItemImpl(item *MenuItem, group GSListPointer) *linuxMenuItem {
 	result := &linuxMenuItem{
 		menuItem: item,
-		native:   menuRadioItemNew(group, item.label),
+		native:   menuRadioItemNew(group, item.displayLabel()),
 	}
 	if item.accelerator != nil {
 		result.setAccelerator(item.accelerator)

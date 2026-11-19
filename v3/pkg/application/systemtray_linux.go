@@ -169,8 +169,8 @@ func (s *linuxSystemTray) processMenu(menu *Menu, parentId int32) {
 
 		menuItem.V1["enabled"] = dbus.MakeVariant(!item.disabled)
 		menuItem.V1["visible"] = dbus.MakeVariant(!item.hidden)
-		if item.label != "" {
-			menuItem.V1["label"] = dbus.MakeVariant(item.label)
+		if label := item.displayLabel(); label != "" {
+			menuItem.V1["label"] = dbus.MakeVariant(label)
 		}
 		if item.bitmap != nil {
 			menuItem.V1["icon-data"] = dbus.MakeVariant(item.bitmap)

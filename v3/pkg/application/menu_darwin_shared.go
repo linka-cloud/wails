@@ -28,6 +28,20 @@ func newMenuImpl(menu *Menu) *macosMenu {
 	return result
 }
 
+func prepareMacOSMenuItem(item *MenuItem) *macosMenuItem {
+	native := newMenuItemImpl(item)
+	item.impl = native
+	if item.hidden {
+		native.setHidden(true)
+	}
+	// AppKit can crash while updating the image of a newly inserted subtitle
+	// row in a tracking menu. Finish configuring the row before inserting it.
+	if len(item.bitmap) > 0 {
+		native.setBitmap(item.bitmap)
+	}
+	return native
+}
+
 func (m *macosMenu) update() {
 	InvokeSync(func() {
 		if m.nsMenu == nil {
