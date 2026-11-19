@@ -33,11 +33,31 @@ func (m *macosTextInputDialog) show() (chan string, error) {
 	field.send("setPlaceholderString:", nsString(d.Placeholder))
 	alert.send("setAccessoryView:", field)
 	field.send("release")
-	alert.send("window").send("setInitialFirstResponder:", field)
 	ok, cancel := textInputButtonLabels(d)
 	alert.send("addButtonWithTitle:", nsString(ok)).send("setKeyEquivalent:", nsString("\r"))
 	alert.send("addButtonWithTitle:", nsString(cancel)).send("setKeyEquivalent:", nsString("\x1b"))
+
+	// Layout installs the accessory view before the window can focus it.
+	alert.send("layout")
+	alertWindow := alert.send("window")
+	alertWindow.send("setInitialFirstResponder:", field)
+	alertWindow.send("makeFirstResponder:", field)
+
+	// AppKit can reset the responder when the window first becomes key.
+	notifications := class("NSNotificationCenter").send("defaultCenter")
+	needsFocus := true
+	focusBlock := objc.NewBlock(func(_ objc.Block, _ objc.ID) {
+		if needsFocus {
+			needsFocus = false
+			alertWindow.send("makeFirstResponder:", field)
+		}
+	})
+	observer := notifications.send("addObserverForName:object:queue:usingBlock:",
+		nsString("NSWindowDidBecomeKeyNotification"), alertWindow, objc.ID(0), focusBlock)
+	focusBlock.Release()
+
 	finish := func(response int) {
+		notifications.send("removeObserver:", observer)
 		text := ""
 		if response == nsAlertFirstButtonReturn {
 			text = field.send("stringValue").string()
@@ -47,6 +67,10 @@ func (m *macosTextInputDialog) show() (chan string, error) {
 		alert.send("release")
 	}
 	parent := dialogParentWindow(d.Window)
+	app := nsApp()
+	if !get[bool](app, "isActive") {
+		app.send("activateIgnoringOtherApps:", true)
+	}
 	if parent.isNil() {
 		finish(get[int](alert, "runModal"))
 	} else {

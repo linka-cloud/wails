@@ -61,8 +61,7 @@ static void showTextInputDialog(
 		free(placeholder);
 	}
 	[alert setAccessoryView:textField];
-    [textField release];
-    [[alert window] setInitialFirstResponder:textField];
+	[textField release];
 
 	NSString *okTitle = okButtonText != NULL ? [NSString stringWithUTF8String:okButtonText] : @"OK";
 	NSString *cancelTitle = cancelButtonText != NULL ? [NSString stringWithUTF8String:cancelButtonText] : @"Cancel";
@@ -71,16 +70,37 @@ static void showTextInputDialog(
 	[[alert addButtonWithTitle:okTitle] setKeyEquivalent:@"\r"];
 	[[alert addButtonWithTitle:cancelTitle] setKeyEquivalent:@"\033"];
 
+	// Layout installs the accessory view before the window can focus it.
+	[alert layout];
+	NSWindow *alertWindow = [alert window];
+	[alertWindow setInitialFirstResponder:textField];
+	[alertWindow makeFirstResponder:textField];
+
+	// AppKit can reset the responder when the window first becomes key.
+	NSNotificationCenter *notifications = [NSNotificationCenter defaultCenter];
+	__block BOOL needsFocus = YES;
+	id observer = [notifications addObserverForName:NSWindowDidBecomeKeyNotification
+		object:alertWindow queue:nil usingBlock:^(NSNotification *notification) {
+			if (needsFocus) {
+				needsFocus = NO;
+				[alertWindow makeFirstResponder:textField];
+			}
+		}];
+
 	void (^handler)(NSModalResponse) = ^(NSModalResponse response) {
+		[notifications removeObserver:observer];
 		if (response == NSAlertFirstButtonReturn) {
 			NSString *value = [textField stringValue];
 			textInputDialogCallback(dialogID, (char*)[value UTF8String]);
 		} else {
 			textInputDialogCallback(dialogID, NULL);
 		}
-        [alert release];
+		[alert release];
 	};
 
+	if (![NSApp isActive]) {
+		[NSApp activateIgnoringOtherApps:YES];
+	}
 	if (window != NULL) {
 		[alert beginSheetModalForWindow:(__bridge NSWindow *)window completionHandler:handler];
 	} else {
