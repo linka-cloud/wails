@@ -51,7 +51,19 @@ static void showTextInputDialog(
 	} else {
 		textField = [NSTextField new];
 	}
-	[textField setFrame:NSMakeRect(0,0,226,24)];
+	NSControlSize controlSize = NSControlSizeRegular;
+	if (@available(macOS 11.0, *)) {
+		controlSize = NSControlSizeLarge;
+	}
+	[textField setBezeled:YES];
+	[textField setBezelStyle:NSTextFieldRoundedBezel];
+	[textField setControlSize:controlSize];
+	[textField setFont:[NSFont systemFontOfSize:[NSFont systemFontSizeForControlSize:controlSize]]];
+	[textField setUsesSingleLineMode:YES];
+	[[textField cell] setScrollable:YES];
+	CGFloat height = MAX(24.0, ceil([textField fittingSize].height));
+	// Let the alert choose its width from the message and buttons.
+	[textField setFrame:NSMakeRect(0, 0, 1, height)];
 	if (defaultText != NULL) {
 		[textField setStringValue:[NSString stringWithUTF8String:defaultText]];
 		free(defaultText);
@@ -67,10 +79,17 @@ static void showTextInputDialog(
 	NSString *cancelTitle = cancelButtonText != NULL ? [NSString stringWithUTF8String:cancelButtonText] : @"Cancel";
 	if (okButtonText != NULL) free(okButtonText);
 	if (cancelButtonText != NULL) free(cancelButtonText);
-	[[alert addButtonWithTitle:okTitle] setKeyEquivalent:@"\r"];
-	[[alert addButtonWithTitle:cancelTitle] setKeyEquivalent:@"\033"];
+	NSButton *okButton = [alert addButtonWithTitle:okTitle];
+	NSButton *cancelButton = [alert addButtonWithTitle:cancelTitle];
+	[okButton setKeyEquivalent:@"\r"];
+	[cancelButton setKeyEquivalent:@"\033"];
 
-	// Layout installs the accessory view before the window can focus it.
+	// Use the buttons' alignment rects to exclude padding around their bezels.
+	[alert layout];
+	NSRect okRect = [[okButton superview] convertRect:[okButton alignmentRectForFrame:[okButton frame]] toView:nil];
+	NSRect cancelRect = [[cancelButton superview] convertRect:[cancelButton alignmentRectForFrame:[cancelButton frame]] toView:nil];
+	NSRect buttons = NSUnionRect(okRect, cancelRect);
+	[textField setFrameSize:NSMakeSize(buttons.size.width, height)];
 	[alert layout];
 	NSWindow *alertWindow = [alert window];
 	[alertWindow setInitialFirstResponder:textField];

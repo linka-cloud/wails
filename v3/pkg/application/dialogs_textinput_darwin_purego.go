@@ -2,7 +2,11 @@
 
 package application
 
-import "github.com/ebitengine/purego/objc"
+import (
+	"math"
+
+	"github.com/ebitengine/purego/objc"
+)
 
 type macosTextInputDialog struct{ dialog *TextInputDialogStruct }
 
@@ -28,16 +32,49 @@ func (m *macosTextInputDialog) show() (chan string, error) {
 	if d.Password {
 		fieldClass = "NSSecureTextField"
 	}
-	field := class(fieldClass).send("alloc").send("initWithFrame:", rect(0, 0, 226, 24))
+	const (
+		regularControlSize = 0
+		largeControlSize   = 3
+		roundedBezel       = 1
+	)
+	controlSize := regularControlSize
+	if macOSAtLeast(11, 0) {
+		controlSize = largeControlSize
+	}
+	// Let the alert choose its width from the message and buttons.
+	field := class(fieldClass).send("alloc").send("initWithFrame:", rect(0, 0, 1, 24))
+	field.send("setBezeled:", true)
+	field.send("setBezelStyle:", roundedBezel)
+	field.send("setControlSize:", controlSize)
+	font := class("NSFont")
+	fontSize := get[CGFloat](font, "systemFontSizeForControlSize:", controlSize)
+	field.send("setFont:", font.send("systemFontOfSize:", fontSize))
+	field.send("setUsesSingleLineMode:", true)
+	field.send("cell").send("setScrollable:", true)
+	height := max(24, math.Ceil(get[CGSize](field, "fittingSize").Height))
+	field.send("setFrameSize:", CGSize{Width: 1, Height: height})
 	field.send("setStringValue:", nsString(d.DefaultText))
 	field.send("setPlaceholderString:", nsString(d.Placeholder))
 	alert.send("setAccessoryView:", field)
 	field.send("release")
 	ok, cancel := textInputButtonLabels(d)
-	alert.send("addButtonWithTitle:", nsString(ok)).send("setKeyEquivalent:", nsString("\r"))
-	alert.send("addButtonWithTitle:", nsString(cancel)).send("setKeyEquivalent:", nsString("\x1b"))
+	okButton := alert.send("addButtonWithTitle:", nsString(ok))
+	cancelButton := alert.send("addButtonWithTitle:", nsString(cancel))
+	okButton.send("setKeyEquivalent:", nsString("\r"))
+	cancelButton.send("setKeyEquivalent:", nsString("\x1b"))
 
-	// Layout installs the accessory view before the window can focus it.
+	// Use the buttons' alignment rects to exclude padding around their bezels.
+	alert.send("layout")
+	alignmentRect := func(button id) CGRect {
+		frame := get[CGRect](button, "frame")
+		alignment := get[CGRect](button, "alignmentRectForFrame:", frame)
+		return get[CGRect](button.send("superview"), "convertRect:toView:", alignment, objc.ID(0))
+	}
+	okBounds := alignmentRect(okButton)
+	cancelBounds := alignmentRect(cancelButton)
+	left := min(okBounds.Origin.X, cancelBounds.Origin.X)
+	right := max(okBounds.Origin.X+okBounds.Size.Width, cancelBounds.Origin.X+cancelBounds.Size.Width)
+	field.send("setFrameSize:", CGSize{Width: right - left, Height: height})
 	alert.send("layout")
 	alertWindow := alert.send("window")
 	alertWindow.send("setInitialFirstResponder:", field)
